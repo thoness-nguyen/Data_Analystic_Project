@@ -1,0 +1,546 @@
+---
+title: "Google Data Analytics Capstone Project: Bellabeat"
+author: "Thoness Nguyen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+
+```
+
+## Introduction
+
+This is a **Capstone Project** for the Google Data Analytics Professional Certification.
+
+Bellabeat is a high-tech company that manufactures health-focused smart products that help women easily track their overall health and wellness, and get connected to their body and mind throughout different stages in life.
+
+I will be using the 6 phases of the analysis process (Ask, Prepare, Process, Analyze, Share and Act) to help guide my analysis of the datasets.
+
+_Using this to findout more details [here](https://d3c33hcgiwev3.cloudfront.net/2reZHciXSeaQPi34IuxhwA_1e59e0fb850b496284b7c7f6e4511df1_Case-Study-2_How-can-a-wellness-technology-company-play-it-smart.pdf?Expires=1690243200&Signature=PeFgPvXzXKqnuLbBPiBqinj7y~xfodluj0NAhf31AEsPe9B1m-NxKJ0Q148KjzjAh-Dd-O4bPNXoYbqrgzKtyM4IN6fyOC7Vo4Pll~MbKjbRfaR67qRBLQswepmjZajAip5W8BkIeRsF3u5KmmEE2IY5-ACt~nvTG2l5EG2t3z4_&Key-Pair-Id=APKAJLTNE6QMUY6HBC5A)_
+
+## Phase 1: Ask
+
+**1. Identify the business task:**
+
+**_Requests:_**
+
+- Use data in non-bellabeat smart devices to analyze and gain insights.
+
+- Select 1 product to apply those insights.
+
+**_Problem:_**
+
+_General question:_
+
+1. What are some trends in smart device usage?
+
+2. How could these trends apply to Bellabeat customers?
+
+3. How could these trends help influence Bellabeat marketing strategy?
+
+_Bellabeat products and customer-focused inquiries:_
+
+1. In what ways do women currently integrate Bellabeat devices into their daily activities?
+
+2. What is the frequency of usage for these devices among Bellabeat's customers?
+
+3. What are the current trends concerning women's preferences and behaviors in relation to smart devices and wellness technology?
+
+**_2. Consider key stakeholders:_**
+
+**Primary Stakeholder(s):**
+
+- Urska Srsen - Chief Executive Officer (CEO) and co-founder of Bellabeat.
+
+- Sando Mur - Mathematician and co-founder of Bellabeat.
+
+**Secondary Stakeholder:**
+
+- Bellabeat Marketing Analytics Team
+
+## Phase 2: Prepare
+
+**1. Identify the data source:**
+
+**Dataset:** [FitBit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit) (CC0: Public Domain, dataset made available through Mobius): This Kaggle data set contains personal fitness tracker from thirty fitbit users. Thirty eligible Fitbit users consented to the submission of personal tracker data, including minute-level output for physical activity, heart rate, and sleep monitoring. It includes information about daily activity, steps, and heart rate that can be used to explore users’ habits.
+
+The way of data organized:
+
+- Dataset stored in large scale and put in long format under the CSV type.
+
+- It was divided into small parts of the dataset.
+
+**2. Verified the data integrity:**
+
+I will use the **“ROCCC”** system to determine the credibility and integrity of the data.
+
+**Reliability:** This data is not reliable. There is no information about the margin of error and a small sample size (30 participants) has been used, which can affect the trust-worthiness and result of the data.
+
+**Originality:** This is not an original dataset as it was originally collected from Amazon Mechanical Murk, then, another user posted an updated version.
+
+**Comprehensiveness:** This data is not comprehensive. There is no information about the participants, such as gender, age, health state, etc. This could mean that data was not randomized. If the data is biased, then the insights from the analysis will be unfair to all types of people.
+
+**Current:** This data was collected in 2016, which means it is currently outdated and may not represent the current trends in smart device usage.
+
+**Cited:** As stated before, Amazon Mechanical Murk created the dataset, but we have no information on whether this is a credible source.
+
+The **data integrity and credibility** is clearly insufficient to provide reliable and comprehensive insights to Bellabeat. Therefore, the following analysis can only provide first hints and directions which should be verified through an analysis of a larger and much more reliable dataset.
+
+## Phase 3: Process
+
+For this analysis, I will be focusing on the daily data as my analysis will be on detecting high-level trends in smart device usage. I will be using the set data that is related to **_"Calories, Activity, Sleep"_** as they will probably give some interesting insights into the user data.
+
+_**NOTE**: All my analysis will be completed in **RStudio Cloud**._
+
+I will start by loading the required R packages for my analysis as I started download before.
+
+```{r warning=FALSE}
+library("tidyverse")
+library("ggplot2")
+library("dplyr")
+library("readr")
+library("skimr")
+library("stringr")
+library("janitor")
+library("lubridate")
+library("viridis")
+```
+
+Next, I will import all essential files onto R.
+
+```{r}
+sleep_day <- read.csv("sleepDay_merged.csv")
+daily_activity <- read.csv("dailyActivity_merged.csv")
+minute_intensity<- read.csv("minuteIntensitiesNarrow_merged.csv")
+minute_calories <- read.csv("minuteCaloriesNarrow_merged.csv")
+```
+
+### **Observing and cleaning the datasets**
+
+Take a general look on the datasets
+
+```{r}
+head(daily_activity)
+head(sleep_day)
+head(minute_calories)
+head(minute_intensity)
+```
+
+
+From the datasets above, I will join the "minute_calories" and "minute_intensity" in one data frame as they are similar in character, then, slip all the date and time values separately to make way easier to analyze.
+
+**_Join datasets_**
+
+```{r}
+minute_activity <- merge(minute_calories, minute_intensity, by = c("ActivityMinute", "Id"))
+```
+
+**_Separate the data and time values (Date_Time_PM/AM_**
+
+```{r warning=FALSE}
+sleep_day <- sleep_day %>% 
+  separate(SleepDay, c("Date", "Time"), sep = " ")
+
+minute_activity <- minute_activity %>% 
+  mutate(ActivityMinute = mdy_hms(ActivityMinute),
+         Date = as.Date (ActivityMinute),
+         Time = format (ActivityMinute, "%H:%M:%S"),
+         AM_PM = format(ActivityMinute, "%p")) 
+```
+**Change column order and assign values in "minute_activity"**
+
+_Delete the unused column name_
+```{r}
+minute_activity$ActivityMinute <- NULL 
+```
+_rearrange the column_
+``` {r}
+minute_activity <- minute_activity [,c("Id", "Date", "Time", "AM_PM", "Calories", "Intensity")]
+```
+_Replace the value of Intensity column with_
+
+- 0 = Sedentary
+
+- 1 = Light
+
+- 2 = Moderate
+
+- 3 = Very Active
+```{r}
+minute_activity <- minute_activity %>%
+  mutate(Intensity = recode(Intensity,
+                            '0' = "Sedentary",
+                            '1' = "Light",
+                            '2' = "Moderate",
+                           '3' = "Very Active"))
+```
+_Drop down the unnecessary dataframe to save data space_
+```{r}
+rm(minute_calories,minute_intensity)
+```
+
+I will now find out how many distinct users there are in each dataframe
+
+```{r}
+n_distinct(daily_activity$Id)
+n_distinct(sleep_day$Id)
+n_distinct(minute_activity$Id)
+```
+
+From this, we can see that there are:
+
+- 33 unique participants in the daily_activity and minute_activity dataframe
+
+- 24 unique participants in the sleep_day_new dataframe
+
+Next, I will check to see if there are any duplicate rows in each dataframe.
+
+```{r}
+nrow(daily_activity[duplicated(daily_activity),])
+nrow(sleep_day[duplicated(sleep_day),])
+nrow(minute_activity[duplicated(minute_activity),])
+```
+
+We can see that 3 duplicate rows were found in the sleep_day_new dataframe and will have to be removed.
+
+```{r}
+nrow(sleep_day)
+sleep_day <- unique(sleep_day)
+nrow (sleep_day)
+```
+
+While exploring the datasets, I also found a lot cells with “0” values, so I will omit these to prevent skewed results.
+
+```{r}
+daily_activity <- daily_activity %>% filter(TotalSteps !=0)
+daily_activity <- daily_activity %>% filter(TotalDistance !=0)
+minute_activity <- minute_activity %>% filter(Calories !=0)
+```
+
+## Phase 4: Analyze
+
+First, I checked for statistical summary of the variables in each dataframe.
+
+**_1. Daily_activity dataframe:_**
+
+```{r}
+daily_activity %>% 
+  select(TotalSteps,
+         TotalDistance,
+         TrackerDistance,
+         LoggedActivitiesDistance,
+         FairlyActiveMinutes,
+         LightlyActiveMinutes,
+         SedentaryMinutes,
+         VeryActiveMinutes,
+         Calories) %>% 
+  summary()
+```
+**Observation**
+
+- Average sedentary minutes were at 991.2 minutes or 16 hours.
+
+- Average very active minutes and fairly active minutes were at 21.16 minutes and 13.56 minutes respectively.
+
+- Average lightly active minutes were at 192.8 minutes, or 3.5 hours.
+
+- The average amount of calories burnt per day was around 2304 kcal.
+
+**Find out**
+
+- Participants were largely inactive throughout the day.
+
+- Participants spent a low amount of time exercising.
+
+- Participants are unlikely to take part in vigorous activities.
+
+**_2. sleep_day dataframe:_**
+
+```{r}
+sleep_day %>% 
+  select(TotalMinutesAsleep,
+         TotalTimeInBed) %>% 
+  summary()
+```
+**Observation**
+
+- Participants spent, on average, 458.6 minutes (7.64 hours) in bed.
+
+- Average sleeping time was 419.5 minutes or 7 hours.
+
+**Find out**
+
+- Participants had an adequate amount of sleep.
+
+## Phase 5: Share
+
+### **Visualizations**
+
+I created visualisations to find relationships between the variables.
+
+**1. We will first look at the relationship between the total number of steps, distance and calories burned**
+
+**Fig 1: The Relationship Between Steps & Calories**
+
+```{r}
+ggplot (data = daily_activity) + 
+  geom_point(mapping = aes (x = TotalSteps, y = Calories, color = Id)) +
+  geom_smooth(mapping = aes (x = TotalSteps, y = Calories)) +
+  labs(title = "The Relationship Between Steps & Calories", x = "Total Steps",
+       y = "Calories Burned (Kcal)") +
+  guides(color = "none")
+```
+
+**Fig 2: The Relationship Between Distance & Calories**
+
+```{r}
+ggplot(data = daily_activity) +
+  geom_point(mapping = aes (x = TotalDistance, y = Calories, color = Id)) +
+  geom_smooth(mapping = aes (x =TotalDistance, y = Calories)) +
+  labs(title = "The Relationship Between Distance & Calories",
+       x = "Total Distance",
+       y = "Calories Burned (Kcal)") +
+  guides(color = "none")
+```
+
+The above figure, Fig 1 and Fig 2, illustrate a significantly positive correlation between steps, distance, and calories. It is evident that as the number of steps taken and the distance covered increase, so does the number of calories burned.
+
+However, it is important to note that the amount of calories burned shows no direct relationship with the number of steps or distance covered. Instead, it seems to depend on other factors, such as the intensity of the activity.
+
+Moving forward, we will continue to analyze the related factors that are worth studying.
+
+
+**2. Total activity minutes based on activity types**
+
+convert dataframe from wide data to long data into **"daily_activity_long"**
+
+```{r}
+daily_activity_long <- daily_activity %>%
+  gather(key = "ActivityType", value = "Minutes", VeryActiveMinutes, FairlyActiveMinutes,
+         LightlyActiveMinutes, SedentaryMinutes)
+```
+
+**Fig 3: Intensity Depends On Activity Type In Total**
+
+```{r}
+ggplot(data = daily_activity_long) +
+  geom_col(mapping = aes(x = ActivityType, y = Minutes),
+                         fill= "#FF5722", width = 0.5) +
+  xlab("Activity Type") +
+  ylab("Minutes") +
+  ggtitle("Intensity Depends On Activity Type In Total") +
+  scale_x_discrete(labels = c("Fairly", "Lightly", "Sedentary", "Very")) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+Fig 3 shows that the participants experienced four different types of intensity activities in a day. When summing up the minutes taken for each activity, it becomes evident that **sedentary** is the most popular activity among the participants throughout the day.
+
+_**Sedentary** is all the activities need the lowest intensity, like, sitting, laying, watching._
+
+**3. How many minutes in average are used per each type of activity**
+
+Create average minutes per activities type dataframe:
+
+- conclude in average values
+
+- Round value
+
+- Convert data as long from narrow
+
+```{r}
+AVG_daily_active_minute <- daily_activity %>%
+  group_by(ActivityDate) %>%
+  summarize(
+    avg_Very_Active = mean(VeryActiveMinutes),
+    avg_Fairly_Active = mean(FairlyActiveMinutes),
+    avg_Lightly_Active = mean(LightlyActiveMinutes),
+    avg_Sedentary = mean(SedentaryMinutes)) %>%
+  mutate(avg_Very_Active = round(avg_Very_Active),
+         avg_Fairly_Active = round(avg_Fairly_Active),
+         avg_Lightly_Active = round(avg_Lightly_Active),
+         avg_Sedentary = round(avg_Sedentary)) %>%
+  gather(key = "MinuteType",value = "Minutes", avg_Very_Active,
+         avg_Fairly_Active, avg_Lightly_Active, avg_Sedentary)
+```
+
+**Fig 4: AVG minutes per activity in a day of participants**
+
+```{r warning=FALSE}
+ggplot(data = AVG_daily_active_minute) +
+  geom_col(mapping = aes (x = MinuteType, 
+                 y = Minutes), position = "dodge", width = 0.5, fill = "#2980B9") +
+  scale_x_discrete(labels = c("Fairly", "Lightly", "Sedentary", "Very")) +
+  labs(title = "AVG minutes per activity in a day of participants", 
+       x = "Activity Type",
+       y = "Minutes per day") +
+  stat_summary(mapping = aes(x = MinuteType, y = Minutes,
+                             label = round(..y..), group = 1),
+               fun = "mean", geom = "text", vjust = -0.5, 
+               position = position_dodge(width = 0.5))
+```
+
+Following the overview of the average time spent per activity, we will now analyze the data on a smaller scale by examining the number of minutes taken for each specific activity.
+
+The chart above (Fig 4) depicts the average time used in a day per activities of participants. It is clearly that, sedentary are hold the first place with 986 minutes per day.
+
+_**NOTE**: In this scenario, "sedentary" includes sleep minutes._
+
+Minus the average time as sleep, there is total of **567 minutes of sedentary.**
+
+So, we will find out, how many calories will be taken in different types of activities?
+
+**4. The relationship between intensity and calories**
+
+Create average calories dataframe from daily_minute
+
+```{r}
+AVG_minute_daily <- minute_activity %>%
+  group_by(Intensity) %>%
+  summarise(Calories = mean(Calories))
+```
+
+**Fig 5: AVG calories burned based on activity intensity (per min)**
+
+```{r}
+ggplot(data = AVG_minute_daily) +
+  geom_bar(mapping = aes(x = Intensity, y = Calories), stat= "identity",
+                         fill = "#8BC34A", width = 0.5) +
+  geom_text(aes(label = round (Calories,2),
+                x = Intensity, y = Calories), vjust = 1) +
+  labs (title = "AVG calories burned based on activity intensity (per min)",
+        x = "Intensity Type", y = "Calories (per min)")
+```
+
+From the Fig 5, there is less relation between calories burned per each activities. In average:
+
+- Sedentary burned 1.15 kcal per minute.
+
+- Lightly activity burned 3.44 kcal per minute.
+
+- Moderate activity burned 5.24 kcal per minute.
+
+- Very active activity burned 9.06 kcal per minute.
+
+**5. Sleep_day data frame focused**
+
+**Fig 6: Density of Total Minutes Asleep and Total Time In Bed**
+
+```{r warning=FALSE}
+ggplot(data = sleep_day) +
+  geom_freqpoly(mapping = aes (x=TotalMinutesAsleep), color = "#FF5722",
+                binwidth = 30, size =1) +
+  geom_freqpoly(mapping = aes (x = TotalTimeInBed), color = "#2980B9",
+                binwidth = 30, size = 1) +
+  labs (title = "Density of Total Minutes Asleep and Total Time In Bed",
+        x = "Minutes", y = "Count") +
+  annotate("text", x = 600, y = 80, label = "Total Minutes As sleep",
+           color = "#FF5722", hjust = - 0.20, vjust = 10) +
+  annotate("text", x = 600, y = 70, label = "Total Time In Bed",
+           color = "#2980B9", hjust = -0.25, vjust = 10)
+```
+
+As we can see from the graph above, there is a positive correlation between the total minutes asleep and the amount of time spent in bed.Using this data, Bellabeat can use an app that notifies its customers about when it would be the right time to go to bed so that they can get an adequate amount of sleep.
+
+**5. Fibit device data in used**
+
+**Fig 7: Total Distance and Tracker Distance Device**
+
+```{r}
+ggplot(data = daily_activity) +
+  geom_point(mapping = aes (x = TotalDistance, y = TrackerDistance,color = Id)) +
+  labs(title = "Total Distance and Tracker Distance Device",
+       x = "Total Distance", y = "Fitbit Device Tracked") +
+  guides(color = "none")
+```
+
+Let's take a look at the Fitbit device. There is an identical reading for kilometers from the total distance on the Tracker device. It means the smart device is always side by side with the participants.
+
+**Fig 8: Density of Distance Tracked and Logged in Distance**
+
+```{r warning=FALSE}
+ggplot(data = daily_activity) +
+  geom_density(mapping = aes (x = TrackerDistance), color = "#00FFE8", 
+               fill = "#ff5722", adjust = 10) +
+  geom_density(mapping = aes (x = LoggedActivitiesDistance), color = "skyblue",
+               fill = "#2980B9", adjust = 10) +
+  annotate("text", x = 20, y= 0.15, label = "Tracker Distance (Km)",
+           color = "#ff5722", size = 4, hjust = 1) +
+  annotate("text", x = 20, y= 0.12, label = "Km When Logged in Fitbit Device",
+           color = "#2980B9", size = 4, hjust = 0.68) +
+  labs(title = "Density of Distance Tracked and Logged in Distance",
+       x = "Distance", y = "Density")
+```
+
+Going straight forward, the correlation between Tracker devices and Logged in devices shows a low correlation. There are several reasons for this disparity between recorded and tracked data need to find out, such as:
+
+- It is hard to log in.
+
+- It is not convenient.
+
+- Not access to the internet.
+
+## Phase 6: Act
+
+**Recommendations for Bellabeat Marketing Strategy:**
+
+**1. Marketing Strategy**
+
+Based on the information we have gathered on the daily intensity activities that users engage in, it is evident that the minutes spent in sedentary activities are at a high level. It is important to note that such sedentary behavior may not be beneficial for the participants or your customers' overall health and well-being.
+
+With this insight, we can create an effective email marketing campaign that addresses the negative effects of prolonged sedentary activities while also offering solutions that are related to the tools or app of Bellabeat.
+
+The campaign could highlight the following points:
+
+For example subject: **_"Take Charge of Your Health with Bellabeat - Say No to Sedentary Lifestyle!"_**
+
+**2. Products Strategy**
+
+Firstly, we acknowledge that there is a limitation in Bellabeat products, which primarily focus on tracker devices. Based on the data presented in Fig 3 and Fig 8, it appears that the current trackers may not be effectively encouraging customers to engage in more exercise and adopt a healthier lifestyle, as the time spent on activities during the 30-day period remains consistently below the desired level.
+
+In this statement, the suggestion is to expand the product range by introducing new tools or kits with embedded chips that work in conjunction with the Bellabeat app. These new tools could potentially offer additional features or functionalities to motivate users to be more active and adopt healthier habits.
+
+**3. Bellabeat App Strategy**
+
+Based on the activity levels and the number of calories burned (Fig 1, 2, 5), we can build **_personalized workouts and training_** tailored to the input of each user. These workouts can be designed to align with the four levels of intensity identified in the data.
+
+_Sedentary:_
+
+- Minutes: Spending 0-30 minutes in sedentary activities like sitting, watching TV, or using electronic devices.
+- Steps: Taking fewer than 1,000 steps per day.
+
+_Lightly Active:_
+
+- Minutes: Spending 30-60 minutes in lightly active activities like walking at a slow pace or doing light household chores.
+
+- Steps: Taking around 1,000 to 4,999 steps per day.
+
+_Fairly Active:_
+
+- Minutes: Spending 60-90 minutes in fairly active activities like brisk walking, light jogging, or dancing.
+
+- Steps: Taking around 5,000 to 7,499 steps per day.
+
+_Very Active:_
+
+- Minutes: Spending more than 90 minutes in very active activities like running, high-intensity interval training, or vigorous sports.
+
+- Steps: Taking 7,500 steps or more per day.
+
+We could also offer app incentives, such as give users app credits for every 1000 steps, which can then be used to redeem prizes or vouchers.
+
+The data also shows many people lead either a lightly active or sedentary lifestyle, which may be due to the nature of their work or the lack of time to exercise. Bellabeat could have a section on their app for short workout videos or short exercises (for example, 10 minute videos) that their customers can follow along to if they don’t necessarily want to exercise alone.
+
+In sum, to encourage better sleeping habits, Bellabeat could incorporate reminders through an app that notifies users of the best time to go to sleep and wake up in order to feel refreshed in the morning and get adequate amount of sleep. The app could also automatically turn on ‘do not disturb’ mode and turn on ‘night mode’ on the customers’ phones to signal the user that they are not disturbed by messages or phone calls from family and friends.
+
+**Recommendations based on the limitations of the dataset:**
+
+A larger sample size in order to improve the statistical significance of the analysis.
+
+Collect a longer period of tracking data, ideally for 6 months to a year, to account for behavioural changes due to the changes in seasons.
+
+The need to obtain current data in order to better reflect current consumer behaviours and/or trends in smart device usage.
+
+Collect data from internal sources (if possible) and/or from primary/secondary data sources to increase credibility and reliability of the datasets.
